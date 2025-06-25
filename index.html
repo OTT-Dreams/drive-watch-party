@@ -4,23 +4,130 @@
   <meta charset="UTF-8" />
   <title>Drive Sync Watch</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script defer src="firebase-config.js"></script>
-  <script defer src="script.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; background: #f8f8f8; }
-    h1 { margin: 20px 0; }
-    #videos { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-    .thumb { cursor: pointer; border: 1px solid #ccc; padding: 5px; background: #fff; }
-    input, button { margin: 10px; padding: 10px; font-size: 16px; }
+    body { font-family: sans-serif; text-align: center; background: #f4f4f4; padding: 20px; }
+    h1 { margin-bottom: 10px; }
+    input, button { padding: 10px; font-size: 16px; margin: 5px; }
+    #videos { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
+    .thumb { background: #fff; padding: 10px; border: 1px solid #ccc; width: 200px; cursor: pointer; }
+    video { width: 90vw; max-height: 80vh; margin-top: 20px; display: none; border: 4px solid #333; border-radius: 10px; }
   </style>
+  <!-- Google API & Ably SDK -->
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
 </head>
 <body>
-  <h1>Drive Sync Watch</h1>
+  <h1>📺 Drive Sync Watch</h1>
 
   <input type="text" id="roomId" placeholder="Enter Room ID" />
   <button onclick="createRoom()">Create Room</button>
   <button onclick="joinRoom()">Join Room</button>
 
   <div id="videos"></div>
+  <video id="player" controls></video>
+
+  <script>
+    // ✅ Your API keys here:
+    const GOOGLE_CLIENT_ID = "223089359374-j7fh0seetlipaagvoq73s4489elnrfko.apps.googleusercontent.com";
+    const GOOGLE_API_KEY = "AIzaSyBZYUGdq5LVDCTjhh1bLO9pU4Dg5SBqt4Y";
+    const GOOGLE_FOLDER_ID = "1D2sJUKRmhTd-652LkRd0a1ltK2nEnWG_";
+    const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+    const ABLY_API_KEY = "YOUR_ABLY_API_KEY"; // ⬅️ Replace with your actual Ably key
+
+    let room = "";
+    let ablyChannel = null;
+    const player = document.getElementById("player");
+
+    function createRoom() {
+      room = document.getElementById("roomId").value.trim();
+      if (!room) return alert("Enter Room ID");
+      alert("Room created. Now select a video.");
+      setupAbly();
+    }
+
+    function joinRoom() {
+      room = document.getElementById("roomId").value.trim();
+      if (!room) return alert("Enter Room ID");
+      setupAbly();
+    }
+
+    function setupAbly() {
+      const ably = new Ably.Realtime(ABLY_API_KEY);
+      ablyChannel = ably.channels.get("room-" + room);
+
+      // Listen for sync updates
+      ablyChannel.subscribe("sync", msg => {
+        const data = msg.data;
+        if (data.videoId && !player.src.includes(data.videoId)) {
+          showVideo(data.videoId);
+        }
+        if (Math.abs(player.currentTime - data.currentTime) > 1) {
+          player.currentTime = data.currentTime;
+        }
+        if (data.playing) player.play();
+        else player.pause();
+      });
+    }
+
+    function syncPlayer() {
+      if (!ablyChannel) return;
+      ablyChannel.publish("sync", {
+        videoId: player.dataset.vid,
+        currentTime: player.currentTime,
+        playing: !player.paused
+      });
+    }
+
+    player.addEventListener("play", syncPlayer);
+    player.addEventListener("pause", syncPlayer);
+    player.addEventListener("seeking", syncPlayer);
+    player.addEventListener("seeked", syncPlayer);
+
+    function showVideo(fileId) {
+      player.src = `https://drive.google.com/uc?id=${fileId}&export=preview`;
+      player.style.display = "block";
+      player.dataset.vid = fileId;
+    }
+
+    function listDriveVideos() {
+      gapi.client.drive.files.list({
+        q: `'${GOOGLE_FOLDER_ID}' in parents and mimeType contains 'video' and trashed=false`,
+        fields: "files(id, name)"
+      }).then(res => {
+        const files = res.result.files;
+        const container = document.getElementById("videos");
+        files.forEach(file => {
+          const div = document.createElement("div");
+          div.className = "thumb";
+          div.innerHTML = `<strong>${file.name}</strong>`;
+          div.onclick = () => {
+            if (!room) return alert("Enter Room ID first");
+            showVideo(file.id);
+            if (ablyChannel) {
+              ablyChannel.publish("sync", {
+                videoId: file.id,
+                currentTime: 0,
+                playing: false
+              });
+            }
+          };
+          container.appendChild(div);
+        });
+      });
+    }
+
+    function startApp() {
+      gapi.client.init({
+        apiKey: GOOGLE_API_KEY,
+        clientId: GOOGLE_CLIENT_ID,
+        scope: GOOGLE_SCOPE,
+        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
+      }).then(() => gapi.auth2.getAuthInstance().signIn())
+        .then(() => listDriveVideos())
+        .catch(err => alert("Google Auth Failed: " + err.message));
+    }
+
+    gapi.load("client:auth2", startApp);
+  </script>
 </body>
 </html>
