@@ -206,9 +206,34 @@
     }
 
     function setupAbly() {
-      const ably = new Ably.Realtime(ABLY_KEY);
-      ablyChannel = ably.channels.get("room-" + room);
+  const ably = new Ably.Realtime(ABLY_KEY);
+  ablyChannel = ably.channels.get("room-" + room);
 
+  // Handle incoming video sync
+  ablyChannel.subscribe("sync", msg => {
+    const data = msg.data;
+    if (data.videoId) {
+      lastVideoId = data.videoId;
+      playVideo(data.videoId);
+    }
+  });
+
+  // Handle request for latest video
+  ablyChannel.subscribe("request-latest", msg => {
+    if (lastVideoId) {
+      ablyChannel.publish("sync", { videoId: lastVideoId });
+    }
+  });
+
+  // Ensure presence is entered before requesting latest video
+  ablyChannel.presence.enter().then(() => {
+    ablyChannel.presence.get((err, members) => {
+      if (members.length > 1) {
+        ablyChannel.publish("request-latest", {});
+      }
+    });
+  });
+}
       ablyChannel.subscribe("sync", msg => {
         const data = msg.data;
         if (data.videoId) {
