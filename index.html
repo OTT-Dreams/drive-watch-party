@@ -19,15 +19,16 @@
 <body>
   <h1>📺 Drive Sync Watch</h1>
 
-  <input type="text" id="roomId" placeholder="Enter Room ID" />
-  <button onclick="createRoom()">Create Room</button>
-  <button onclick="joinRoom()">Join Room</button>
+  <div id="setup">
+    <input type="text" id="roomId" placeholder="Enter Room ID" />
+    <button onclick="createRoom()">Create Room</button>
+    <button onclick="joinRoom()">Join Room</button>
+  </div>
 
   <div id="videos"></div>
   <video id="player" controls></video>
 
   <script>
-    // ✅ Your actual credentials
     const GOOGLE_CLIENT_ID = "223089359374-j7fh0seetlipaagvoq73s4489elnrfko.apps.googleusercontent.com";
     const GOOGLE_API_KEY = "AIzaSyBJ0gKOQZL48z_qN6qsIP5CIsWUwdcpM-Q";
     const GOOGLE_FOLDER_ID = "1AmYUxf-jRUxNY6ev0LC073Etn3fgw3Fj";
@@ -41,13 +42,16 @@
     function createRoom() {
       room = document.getElementById("roomId").value.trim();
       if (!room) return alert("Enter Room ID");
-      alert("Room created. Now select a video.");
+      document.getElementById("setup").style.display = "none";
       setupAbly();
+      startApp(); // Load videos only in createRoom
     }
 
     function joinRoom() {
       room = document.getElementById("roomId").value.trim();
       if (!room) return alert("Enter Room ID");
+      document.getElementById("setup").style.display = "none";
+      document.getElementById("videos").style.display = "none"; // hide video selection
       setupAbly();
     }
 
@@ -55,7 +59,6 @@
       const ably = new Ably.Realtime(ABLY_API_KEY);
       ablyChannel = ably.channels.get("room-" + room);
 
-      // Listen for sync updates
       ablyChannel.subscribe("sync", msg => {
         const data = msg.data;
         if (data.videoId && !player.src.includes(data.videoId)) {
@@ -101,7 +104,6 @@
           div.className = "thumb";
           div.innerHTML = `<strong>${file.name}</strong>`;
           div.onclick = () => {
-            if (!room) return alert("Enter Room ID first");
             showVideo(file.id);
             if (ablyChannel) {
               ablyChannel.publish("sync", {
@@ -127,7 +129,7 @@
         .catch(err => alert("Google Auth Failed: " + err.message));
     }
 
-    gapi.load("client:auth2", startApp);
+    gapi.load("client:auth2", () => {}); // do nothing at load, trigger from createRoom
   </script>
 </body>
 </html>
