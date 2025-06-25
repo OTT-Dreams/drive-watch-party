@@ -85,26 +85,10 @@
       margin-left: 8px;
       display: none;
     }
-    #overlayControls {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+    #externalControls {
+      margin-top: 20px;
       display: flex;
       gap: 10px;
-      z-index: 10;
-    }
-    #overlayControls button {
-      padding: 8px 12px;
-      font-size: 16px;
-      border-radius: 6px;
-      background-color: rgba(46, 204, 113, 0.8);
-      border: none;
-      cursor: pointer;
-      color: #fff;
-    }
-    #overlayControls button:hover {
-      background-color: rgba(39, 174, 96, 0.9);
     }
   </style>
   <script src="https://apis.google.com/js/api.js"></script>
@@ -124,6 +108,10 @@
   </div>
   <div id="main">
     <div id="playerContainer"></div>
+    <div id="externalControls" style="display: none;">
+      <button onclick="sendControl('play')">▶️ Play</button>
+      <button onclick="sendControl('pause')">⏸ Pause</button>
+    </div>
   </div>
   <script>
     const CLIENT_ID = "223089359374-j7fh0seetlipaagvoq73s4489elnrfko.apps.googleusercontent.com";
@@ -286,15 +274,8 @@
       iframe.allow = "autoplay; fullscreen";
       container.appendChild(iframe);
 
-      if (isOwner) {
-        const overlay = document.createElement("div");
-        overlay.id = "overlayControls";
-        overlay.innerHTML = `
-          <button onclick="sendControl('play')">▶️</button>
-          <button onclick="sendControl('pause')">⏸</button>
-        `;
-        container.appendChild(overlay);
-      }
+      const extControls = document.getElementById("externalControls");
+      extControls.style.display = isOwner ? "flex" : "none";
     }
 
     document.addEventListener("click", function (e) {
