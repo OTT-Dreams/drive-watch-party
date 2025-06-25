@@ -200,10 +200,7 @@
     function createRoom(callback = null) {
       room = Math.random().toString(36).substring(2, 8).toUpperCase();
       isOwner = true;
-      document.getElementById("roomDisplay").innerHTML = `
-        🆔 Room ID: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong>
-        <span id="copiedMsg">✔ Copied!</span>
-      `;
+      document.getElementById("roomDisplay").innerHTML = `🆔 Room ID: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong> <span id="copiedMsg">✔ Copied!</span>`;
       setupAbly();
       if (callback) callback();
     }
@@ -211,19 +208,14 @@
     function joinRoom() {
       const input = document.getElementById("roomId").value.trim().toUpperCase();
       if (!input) return alert("Enter Room ID");
-
       if (!gapi.client.getToken()) {
         alert("Please authorize with Google first to access synced videos.");
         handleAuthClick();
         return;
       }
-
       room = input;
       isOwner = false;
-      document.getElementById("roomDisplay").innerHTML = `
-        🎥 Joined Room: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong>
-        <span id="copiedMsg">✔ Copied!</span>
-      `;
+      document.getElementById("roomDisplay").innerHTML = `🎥 Joined Room: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong> <span id="copiedMsg">✔ Copied!</span>`;
       setupAbly();
     }
 
