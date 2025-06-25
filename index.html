@@ -209,6 +209,14 @@
     function joinRoom() {
   const input = document.getElementById("roomId").value.trim().toUpperCase();
   if (!input) return alert("Enter Room ID");
+
+  // 👇 Check if authorized before joining
+  if (!gapi.client.getToken()) {
+    alert("Please authorize with Google first to access synced videos.");
+    handleAuthClick(); // 🟢 Trigger auth flow
+    return;
+  }
+
   room = input;
   document.getElementById("roomDisplay").innerHTML = `
     🎥 Joined Room: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong>
