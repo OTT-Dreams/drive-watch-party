@@ -2,16 +2,81 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Drive Sync Watch</title>
+  <title>📺 Drive Sync Watch</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body { font-family: sans-serif; text-align: center; background: #f4f4f4; padding: 20px; }
-    h1 { margin-bottom: 10px; }
-    input, button { padding: 10px; font-size: 16px; margin: 5px; }
-    #videos { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
-    .thumb { background: #fff; padding: 10px; border: 1px solid #ccc; width: 200px; cursor: pointer; }
-    video { width: 90vw; max-height: 80vh; margin-top: 20px; display: none; border: 4px solid #333; border-radius: 10px; }
-    #joinInfo { font-size: 18px; margin-top: 10px; color: #333; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2rem;
+      color: #333;
+    }
+    #setup {
+      margin-top: 20px;
+    }
+    input, button {
+      padding: 10px 16px;
+      margin: 8px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    input {
+      width: 220px;
+    }
+    button {
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #authorize_button, #signout_button {
+      margin-top: 15px;
+      background-color: #28a745;
+    }
+    #signout_button {
+      background-color: #dc3545;
+    }
+    #joinInfo {
+      margin: 15px auto;
+      font-size: 1rem;
+      color: #444;
+    }
+    #videos {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 25px;
+    }
+    .thumb {
+      background: white;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      width: 200px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .thumb:hover {
+      transform: scale(1.05);
+    }
+    video {
+      margin-top: 20px;
+      width: 90vw;
+      max-height: 80vh;
+      border: 3px solid #333;
+      border-radius: 10px;
+      display: none;
+    }
   </style>
   <script src="https://apis.google.com/js/api.js"></script>
   <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
@@ -22,7 +87,9 @@
   <div id="setup">
     <button onclick="createRoom()">🎬 Create Room</button>
     <input type="text" id="roomId" placeholder="Enter Room ID to Join" />
-    <button onclick="joinRoom()">🔗 Join Room</button>
+    <button onclick="joinRoom()">🔗 Join Room</button><br />
+    <button id="authorize_button" onclick="handleAuthClick()">🔐 Authorize</button>
+    <button id="signout_button" onclick="handleSignoutClick()">🚪 Sign Out</button>
   </div>
 
   <div id="joinInfo"></div>
@@ -38,14 +105,39 @@
 
     let room = "";
     let ablyChannel = null;
+    let tokenClient, gapiInited = false, gisInited = false;
+
     const player = document.getElementById("player");
     const videosDiv = document.getElementById("videos");
+    const joinInfo = document.getElementById("joinInfo");
+    const authorizeBtn = document.getElementById("authorize_button");
+    const signoutBtn = document.getElementById("signout_button");
 
-    // --- Common Ably Setup ---
+    authorizeBtn.style.display = "none";
+    signoutBtn.style.display = "none";
+
+    // -------- Room Logic --------
+    function createRoom() {
+      room = Math.random().toString(36).substring(2, 8).toUpperCase();
+      document.getElementById("setup").style.display = "none";
+      joinInfo.innerHTML = `✅ Room Created: <strong>${room}</strong><br>Share this ID to let others join.`;
+      setupAbly();
+      gapi.load("client", initializeGapiClient);
+    }
+
+    function joinRoom() {
+      room = document.getElementById("roomId").value.trim().toUpperCase();
+      if (!room) return alert("Enter Room ID to join");
+      document.getElementById("setup").style.display = "none";
+      joinInfo.innerText = `🎥 Joined Room: ${room}`;
+      videosDiv.style.display = "none";
+      setupAbly();
+    }
+
+    // -------- Ably Sync --------
     function setupAbly() {
       const ably = new Ably.Realtime(ABLY_API_KEY);
       ablyChannel = ably.channels.get("room-" + room);
-
       ablyChannel.subscribe("sync", msg => {
         const data = msg.data;
         if (data.videoId && !player.src.includes(data.videoId)) {
@@ -54,8 +146,7 @@
         if (Math.abs(player.currentTime - data.currentTime) > 1) {
           player.currentTime = data.currentTime;
         }
-        if (data.playing) player.play();
-        else player.pause();
+        if (data.playing) player.play(); else player.pause();
       });
     }
 
@@ -68,9 +159,7 @@
       });
     }
 
-    ["play", "pause", "seeking", "seeked"].forEach(e => {
-      player.addEventListener(e, syncPlayer);
-    });
+    ["play", "pause", "seeking", "seeked"].forEach(e => player.addEventListener(e, syncPlayer));
 
     function showVideo(fileId) {
       player.src = `https://drive.google.com/uc?id=${fileId}&export=preview`;
@@ -78,60 +167,95 @@
       player.dataset.vid = fileId;
     }
 
-    // --- Load Drive Videos ---
-    function listDriveVideos() {
-      gapi.client.drive.files.list({
+    // -------- Google Auth & Drive --------
+    function gapiLoaded() {
+      gapi.load("client", initializeGapiClient);
+    }
+
+    async function initializeGapiClient() {
+      await gapi.client.init({
+        apiKey: GOOGLE_API_KEY,
+        clientId: GOOGLE_CLIENT_ID,
+        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+        scope: GOOGLE_SCOPE
+      });
+      gapiInited = true;
+      maybeEnableAuth();
+    }
+
+    function gisLoaded() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: GOOGLE_SCOPE,
+        callback: ''
+      });
+      gisInited = true;
+      maybeEnableAuth();
+    }
+
+    function maybeEnableAuth() {
+      if (gapiInited && gisInited) {
+        authorizeBtn.style.display = "inline-block";
+      }
+    }
+
+    function handleAuthClick() {
+      tokenClient.callback = async (resp) => {
+        if (resp.error) throw resp;
+        authorizeBtn.innerText = "🔄 Refresh";
+        signoutBtn.style.display = "inline-block";
+        await listDriveVideos();
+      };
+
+      if (gapi.client.getToken() === null) {
+        tokenClient.requestAccessToken({ prompt: "consent" });
+      } else {
+        tokenClient.requestAccessToken({ prompt: "" });
+      }
+    }
+
+    function handleSignoutClick() {
+      const token = gapi.client.getToken();
+      if (token) {
+        google.accounts.oauth2.revoke(token.access_token);
+        gapi.client.setToken('');
+        authorizeBtn.innerText = "🔐 Authorize";
+        signoutBtn.style.display = "none";
+        videosDiv.innerHTML = '';
+        player.style.display = 'none';
+      }
+    }
+
+    async function listDriveVideos() {
+      const res = await gapi.client.drive.files.list({
         q: `'${GOOGLE_FOLDER_ID}' in parents and mimeType contains 'video' and trashed=false`,
         fields: "files(id, name)"
-      }).then(res => {
-        const files = res.result.files;
-        files.forEach(file => {
-          const div = document.createElement("div");
-          div.className = "thumb";
-          div.innerHTML = `<strong>${file.name}</strong>`;
-          div.onclick = () => {
-            showVideo(file.id);
-            if (ablyChannel) {
-              ablyChannel.publish("sync", {
-                videoId: file.id,
-                currentTime: 0,
-                playing: false
-              });
-            }
-          };
-          videosDiv.appendChild(div);
-        });
+      });
+
+      res.result.files.forEach(file => {
+        const div = document.createElement("div");
+        div.className = "thumb";
+        div.innerHTML = `<strong>${file.name}</strong>`;
+        div.onclick = () => {
+          showVideo(file.id);
+          if (ablyChannel) {
+            ablyChannel.publish("sync", {
+              videoId: file.id,
+              currentTime: 0,
+              playing: false
+            });
+          }
+        };
+        videosDiv.appendChild(div);
       });
     }
 
-    function startApp() {
-      gapi.client.init({
-        apiKey: GOOGLE_API_KEY,
-        clientId: GOOGLE_CLIENT_ID,
-        scope: GOOGLE_SCOPE,
-        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
-      }).then(() => gapi.auth2.getAuthInstance().signIn())
-        .then(() => listDriveVideos())
-        .catch(err => alert("Google Auth Failed: " + err.message));
-    }
-
-    // --- Room Logic ---
-    function createRoom() {
-      room = Math.random().toString(36).substring(2, 8).toUpperCase(); // e.g. "F8K29L"
-      document.getElementById("setup").style.display = "none";
-      document.getElementById("joinInfo").innerHTML = `✅ Room Created: <strong>${room}</strong><br>Share this ID to let others join.`;
-      setupAbly();
-      gapi.load("client:auth2", startApp); // Start Drive load
-    }
-
-    function joinRoom() {
-      room = document.getElementById("roomId").value.trim().toUpperCase();
-      if (!room) return alert("Enter Room ID to join");
-      document.getElementById("setup").style.display = "none";
-      document.getElementById("videos").style.display = "none"; // hide video list
-      document.getElementById("joinInfo").innerText = `🎥 Joined Room: ${room}`;
-      setupAbly();
-    }
+    window.gapiLoaded = gapiLoaded;
+    window.gisLoaded = gisLoaded;
   </script>
+
+  <!-- Load Google APIs -->
+  <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+  <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 </body>
 </html>
