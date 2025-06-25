@@ -1,4 +1,3 @@
-<!-- ✅ FULL UPDATED CODE STARTS -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -161,11 +160,7 @@
         document.getElementById("authorize_button").innerText = "🔄 Refresh";
         await listDriveVideos();
       };
-      if (gapi.client.getToken() === null) {
-        tokenClient.requestAccessToken({ prompt: gapi.client.getToken() ? "" : "consent" });
-      } else {
-        tokenClient.requestAccessToken({ prompt: "" });
-      }
+      tokenClient.requestAccessToken({ prompt: "" });
     }
 
     function handleSignoutClick() {
@@ -237,7 +232,6 @@
         const { action } = msg.data;
         const video = document.getElementById("syncedVideo");
         if (!video) return;
-
         if (action === "play") video.play();
         else if (action === "pause") video.pause();
       });
@@ -271,11 +265,13 @@
     function playVideo(fileId) {
       const container = document.getElementById("playerContainer");
       container.innerHTML = "";
+
       const video = document.createElement("video");
       video.id = "syncedVideo";
-      video.src = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      video.src = `https://drive.google.com/uc?id=${fileId}&export=preview`;
       video.controls = isOwner;
       video.autoplay = true;
+      video.muted = !isOwner;
       video.style.width = "100%";
       video.style.height = "100%";
       video.style.borderRadius = "10px";
@@ -287,8 +283,7 @@
         video.addEventListener("pause", () => sendControlToAll("pause"));
       }
 
-      const extControls = document.getElementById("externalControls");
-      extControls.style.display = isOwner ? "flex" : "none";
+      document.getElementById("externalControls").style.display = isOwner ? "flex" : "none";
     }
 
     document.addEventListener("click", function (e) {
