@@ -20,6 +20,7 @@
         top: 0;
         left: 0;
         background: #000;
+        transform: scaleX(-1); /* Flip remote video to look natural */
       }
 
       #localVideo {
@@ -33,7 +34,7 @@
         object-fit: cover;
         border: 1px solid #ccc;
         z-index: 5;
-        transform: scaleX(1); /* 👈 prevents camera flip */
+        transform: scaleX(1); /* Prevent mirror flip of self view */
       }
 
       .top-bar {
@@ -49,6 +50,13 @@
         background: rgba(0, 0, 0, 0.6);
         padding: 10px 16px;
         border-radius: 24px;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+
+      .top-bar.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -20px);
       }
 
       .id-tap {
@@ -169,6 +177,7 @@
       let currentCall;
       const localVideo = document.getElementById("localVideo");
       const remoteVideo = document.getElementById("remoteVideo");
+      const topBar = document.getElementById("topBar");
 
       const peer = new Peer();
 
@@ -183,6 +192,7 @@
         call.on("stream", (remoteStream) => {
           remoteVideo.srcObject = remoteStream;
         });
+        hideJoinUI();
       });
 
       async function getMedia() {
@@ -209,14 +219,18 @@
 
         if (!localStream) await getMedia();
 
-        document.getElementById("topBar").style.display = "none"; // 👈 Hide join row
-
         const call = peer.call(peerId, localStream);
         currentCall = call;
 
         call.on("stream", (remoteStream) => {
           remoteVideo.srcObject = remoteStream;
         });
+
+        hideJoinUI();
+      }
+
+      function hideJoinUI() {
+        topBar.classList.add("hidden");
       }
 
       function toggleVideo() {
@@ -236,6 +250,7 @@
           currentCall.close();
           remoteVideo.srcObject = null;
         }
+        topBar.classList.remove("hidden");
       }
 
       function copyId() {
