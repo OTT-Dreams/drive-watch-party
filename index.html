@@ -1,297 +1,250 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Drive Sync Watch</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #0e0e0e;
-      color: #fff;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: row;
-      height: 100vh;
-      overflow: hidden;
-    }
-    #sidebar {
-      width: 300px;
-      background-color: #1a1a1a;
-      padding: 20px;
-      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
-      overflow-y: auto;
-    }
-    #main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background-color: #111;
-    }
-    h1 {
-      font-size: 22px;
-      margin-bottom: 15px;
-      color: #2ecc71;
-    }
-    input, button {
-      padding: 10px;
-      font-size: 14px;
-      border-radius: 4px;
-      margin: 5px 0;
-      width: 100%;
-    }
-    button {
-      background: #2ecc71;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #27ae60;
-    }
-    .thumb {
-      background: #222;
-      padding: 8px;
-      border: 1px solid #444;
-      border-radius: 6px;
-      margin-bottom: 10px;
-      cursor: pointer;
-    }
-    .thumb:hover {
-      background: #333;
-    }
-    #playerContainer {
-      position: relative;
-      width: 90%;
-      height: 75%;
-    }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      border-radius: 10px;
-    }
-    #roomDisplay {
-      color: #0f9d58;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-    #copiedMsg {
-      font-size: 12px;
-      color: #0f9d58;
-      margin-left: 8px;
-      display: none;
-    }
-    #externalControls {
-      margin-top: 20px;
-      display: flex;
-      gap: 10px;
-    }
-  </style>
-  <script src="https://apis.google.com/js/api.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
-</head>
-<body>
-  <div id="sidebar">
-    <h1>🎬 Drive Sync Watch</h1>
-    <button id="authorize_button" onclick="handleAuthClick()">🔓 Authorize</button>
-    <button id="signout_button" onclick="handleSignoutClick()" style="display:none;">🚪 Sign Out</button>
-    <input type="text" id="roomId" placeholder="Enter Room ID" />
-    <button onclick="joinRoom()">🔗 Join Room</button>
-    <div id="roomDisplay"></div>
-    <hr style="margin: 15px 0; border-color: #444;" />
-    <div id="videos"></div>
-  </div>
-  <div id="main">
-    <div id="playerContainer"></div>
-    <div id="externalControls" style="display: none;">
-      <button onclick="sendControlToIframe('play')">▶️ Play</button>
-      <button onclick="sendControlToIframe('pause')">⏸ Pause</button>
+<html>
+  <head>
+    <title>Secure Video Call</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        font-family: 'Segoe UI', sans-serif;
+        overflow: hidden;
+      }
+
+      #remoteVideo {
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background: #000;
+      }
+
+      #localVideo {
+        position: absolute;
+        bottom: 85px;
+        right: 10px;
+        width: 110px;
+        height: 150px;
+        background: #000;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid #ccc;
+        z-index: 5;
+        transform: scaleX(1); /* 👈 prevents camera flip */
+      }
+
+      .top-bar {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        z-index: 10;
+        gap: 10px;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 10px 16px;
+        border-radius: 24px;
+      }
+
+      .id-tap {
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+        user-select: none;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .id-wrapper {
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        position: relative;
+      }
+
+      #peerIdInput {
+        padding: 7px;
+        font-size: 14px;
+        border-radius: 4px;
+        border: none;
+        width: 140px;
+      }
+
+      #joinBtn {
+        padding: 7px 14px;
+        font-size: 14px;
+        background: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      #controls {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        background: rgba(20, 20, 20, 0.9);
+        padding: 8px 16px;
+        border-radius: 32px;
+        gap: 12px;
+        z-index: 10;
+      }
+
+      .ctrl-btn {
+        width: 50px;
+        height: 50px;
+        border: none;
+        border-radius: 50%;
+        background-color: #444;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        padding: 0;
+        transition: background-color 0.3s;
+      }
+
+      .ctrl-btn:hover {
+        background-color: #666;
+      }
+
+      .ctrl-btn img {
+        width: 26px;
+        height: 26px;
+        filter: invert(100%);
+      }
+
+      .ctrl-btn.toggled-off {
+        background-color: white !important;
+      }
+
+      .ctrl-btn.toggled-off img {
+        filter: invert(0%);
+      }
+
+      .end-call {
+        background-color: crimson !important;
+      }
+    </style>
+  </head>
+  <body>
+    <video id="remoteVideo" autoplay></video>
+    <video id="localVideo" autoplay muted></video>
+
+    <div class="top-bar" id="topBar">
+      <div class="id-tap" id="idDisplay" onclick="copyId()" title="Tap to copy ID">
+        ID: <span class="id-wrapper"><span id="peerIdText">Loading...</span></span>
+      </div>
+      <input type="text" id="peerIdInput" placeholder="Enter Host ID" />
+      <button id="joinBtn" onclick="startCall()">Join</button>
     </div>
-  </div>
-  <script>
-    const CLIENT_ID = "223089359374-j7fh0seetlipaagvoq73s4489elnrfko.apps.googleusercontent.com";
-    const API_KEY = "AIzaSyBJ0gKOQZL48z_qN6qsIP5CIsWUwdcpM-Q";
-    const SCOPES = "https://www.googleapis.com/auth/drive.readonly";
-    const ABLY_KEY = "x3A3zw.0cEwww:LKwrrj7RypK6l5y-WjlYh6sZUgxBQC8-4432KBULIew";
 
-    let tokenClient, ablyChannel, room = "";
-    let gapiInited = false, gisInited = false;
-    let lastVideoId = null;
-    let isOwner = false;
+    <div id="controls">
+      <button class="ctrl-btn" id="videoBtn" onclick="toggleVideo()">
+        <img src="https://cdn-icons-png.flaticon.com/512/5948/5948966.png" alt="Video">
+      </button>
+      <button class="ctrl-btn" id="audioBtn" onclick="toggleAudio()">
+        <img src="https://cdn-icons-png.flaticon.com/512/5561/5561764.png" alt="Audio">
+      </button>
+      <button class="ctrl-btn end-call" onclick="endCall()">
+        <img src="https://cdn-icons-png.flaticon.com/512/733/733497.png" alt="End">
+      </button>
+    </div>
 
-    function gapiLoaded() {
-      gapi.load('client', initializeGapiClient);
-    }
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script>
+      let localStream;
+      let currentCall;
+      const localVideo = document.getElementById("localVideo");
+      const remoteVideo = document.getElementById("remoteVideo");
 
-    async function initializeGapiClient() {
-      await gapi.client.init({
-        apiKey: API_KEY,
-        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-      });
-      gapiInited = true;
-      maybeEnableAuth();
-    }
+      const peer = new Peer();
 
-    function gisLoaded() {
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: '',
-      });
-      gisInited = true;
-      maybeEnableAuth();
-    }
-
-    function maybeEnableAuth() {
-      if (gapiInited && gisInited) {
-        document.getElementById("authorize_button").style.display = "inline-block";
-      }
-    }
-
-    function handleAuthClick() {
-      tokenClient.callback = async (resp) => {
-        if (resp.error) throw resp;
-        document.getElementById("signout_button").style.display = "inline-block";
-        document.getElementById("authorize_button").innerText = "🔄 Refresh";
-        await listDriveVideos();
-      };
-      if (gapi.client.getToken() === null) {
-        tokenClient.requestAccessToken({ prompt: gapi.client.getToken() ? "" : "consent" });
-      } else {
-        tokenClient.requestAccessToken({ prompt: "" });
-      }
-    }
-
-    function handleSignoutClick() {
-      const token = gapi.client.getToken();
-      if (token) {
-        google.accounts.oauth2.revoke(token.access_token);
-        gapi.client.setToken('');
-        location.reload();
-      }
-    }
-
-    async function listDriveVideos() {
-      const res = await gapi.client.drive.files.list({
-        q: "mimeType contains 'video/' and trashed = false",
-        fields: "files(id, name)"
-      });
-      const videosDiv = document.getElementById("videos");
-      videosDiv.innerHTML = "";
-      res.result.files.forEach(file => {
-        const div = document.createElement("div");
-        div.className = "thumb";
-        div.innerText = file.name;
-        div.onclick = () => {
-          if (!room) {
-            createRoom(() => publishVideoId(file.id));
-          } else {
-            if (isOwner) publishVideoId(file.id);
-          }
-        };
-        videosDiv.appendChild(div);
-      });
-    }
-
-    function createRoom(callback = null) {
-      room = Math.random().toString(36).substring(2, 8).toUpperCase();
-      isOwner = true;
-      document.getElementById("roomDisplay").innerHTML = `🆔 Room ID: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong> <span id="copiedMsg">✔ Copied!</span>`;
-      setupAbly();
-      if (callback) callback();
-    }
-
-    function joinRoom() {
-      const input = document.getElementById("roomId").value.trim().toUpperCase();
-      if (!input) return alert("Enter Room ID");
-      if (!gapi.client.getToken()) {
-        alert("Please authorize with Google first to access synced videos.");
-        handleAuthClick();
-        return;
-      }
-      room = input;
-      isOwner = false;
-      document.getElementById("roomDisplay").innerHTML = `🎥 Joined Room: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong> <span id="copiedMsg">✔ Copied!</span>`;
-      setupAbly();
-    }
-
-    function setupAbly() {
-      const ably = new Ably.Realtime(ABLY_KEY);
-      ablyChannel = ably.channels.get("room-" + room);
-
-      ablyChannel.subscribe("sync", msg => {
-        const data = msg.data;
-        if (data.videoId) {
-          lastVideoId = data.videoId;
-          playVideo(data.videoId);
-        }
+      peer.on("open", (id) => {
+        document.getElementById("peerIdText").textContent = id;
       });
 
-      ablyChannel.subscribe("control", msg => {
-        const { action } = msg.data;
-        const iframe = document.getElementById("videoIframe");
-        if (!iframe) return;
-        iframe.contentWindow.postMessage(JSON.stringify({ event: action }), '*');
-      });
-
-      ablyChannel.subscribe("request-latest", () => {
-        if (lastVideoId) {
-          ablyChannel.publish("sync", { videoId: lastVideoId });
-        }
-      });
-
-      ablyChannel.presence.enter().then(() => {
-        ablyChannel.presence.get((err, members) => {
-          if (members.length > 1) {
-            ablyChannel.publish("request-latest", {});
-          }
+      peer.on("call", async (call) => {
+        currentCall = call;
+        if (!localStream) await getMedia();
+        call.answer(localStream);
+        call.on("stream", (remoteStream) => {
+          remoteVideo.srcObject = remoteStream;
         });
       });
-    }
 
-    function publishVideoId(fileId) {
-      lastVideoId = fileId;
-      if (ablyChannel) {
-        ablyChannel.publish("sync", { videoId: fileId });
-      }
-    }
+      async function getMedia() {
+        try {
+          const camPerm = await navigator.permissions.query({ name: "camera" });
+          const micPerm = await navigator.permissions.query({ name: "microphone" });
 
-    function sendControlToIframe(action) {
-      if (ablyChannel) ablyChannel.publish("control", { action });
-    }
-
-    function playVideo(fileId) {
-      const container = document.getElementById("playerContainer");
-      container.innerHTML = "";
-      const iframe = document.createElement("iframe");
-      iframe.id = "videoIframe";
-      iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
-      iframe.allow = "autoplay; fullscreen";
-      container.appendChild(iframe);
-
-      const extControls = document.getElementById("externalControls");
-      extControls.style.display = isOwner ? "flex" : "none";
-    }
-
-    document.addEventListener("click", function (e) {
-      if (e.target && e.target.id === "copyRoomId") {
-        const text = e.target.innerText;
-        navigator.clipboard.writeText(text).then(() => {
-          const copied = document.getElementById("copiedMsg");
-          if (copied) {
-            copied.style.display = "inline";
-            setTimeout(() => copied.style.display = "none", 1500);
+          if (camPerm.state === "denied" || micPerm.state === "denied") {
+            alert("Camera or microphone access is blocked.\nPlease enable from browser settings.");
+            return;
           }
+
+          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          localVideo.srcObject = localStream;
+        } catch (err) {
+          alert("Unable to access camera or mic.\n➤ Close any overlay apps like Messenger or WhatsApp Bubble\n➤ Or check browser permission settings.");
+          console.error("Media access error:", err);
+        }
+      }
+
+      async function startCall() {
+        const peerId = document.getElementById("peerIdInput").value.trim();
+        if (!peerId) return alert("Please enter a peer ID to join.");
+
+        if (!localStream) await getMedia();
+
+        document.getElementById("topBar").style.display = "none"; // 👈 Hide join row
+
+        const call = peer.call(peerId, localStream);
+        currentCall = call;
+
+        call.on("stream", (remoteStream) => {
+          remoteVideo.srcObject = remoteStream;
         });
       }
-    });
-  </script>
-  <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-  <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-</body>
+
+      function toggleVideo() {
+        const videoTrack = localStream.getVideoTracks()[0];
+        videoTrack.enabled = !videoTrack.enabled;
+        document.getElementById("videoBtn").classList.toggle("toggled-off", !videoTrack.enabled);
+      }
+
+      function toggleAudio() {
+        const audioTrack = localStream.getAudioTracks()[0];
+        audioTrack.enabled = !audioTrack.enabled;
+        document.getElementById("audioBtn").classList.toggle("toggled-off", !audioTrack.enabled);
+      }
+
+      function endCall() {
+        if (currentCall) {
+          currentCall.close();
+          remoteVideo.srcObject = null;
+        }
+      }
+
+      function copyId() {
+        const id = document.getElementById("peerIdText").textContent;
+        navigator.clipboard.writeText(id);
+        alert("Copied ID: " + id);
+      }
+
+      getMedia();
+    </script>
+  </body>
 </html>
