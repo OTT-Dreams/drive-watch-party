@@ -117,6 +117,7 @@
     let tokenClient, ablyChannel, room = "";
     let gapiInited = false, gisInited = false;
     let lastVideoId = null;
+    let isOwner = false;
 
     function gapiLoaded() {
       gapi.load('client', initializeGapiClient);
@@ -198,6 +199,7 @@
 
     function createRoom(callback = null) {
       room = Math.random().toString(36).substring(2, 8).toUpperCase();
+      isOwner = true;
       document.getElementById("roomDisplay").innerHTML = `
         🆔 Room ID: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong>
         <span id="copiedMsg">✔ Copied!</span>
@@ -207,23 +209,23 @@
     }
 
     function joinRoom() {
-  const input = document.getElementById("roomId").value.trim().toUpperCase();
-  if (!input) return alert("Enter Room ID");
+      const input = document.getElementById("roomId").value.trim().toUpperCase();
+      if (!input) return alert("Enter Room ID");
 
-  // 👇 Check if authorized before joining
-  if (!gapi.client.getToken()) {
-    alert("Please authorize with Google first to access synced videos.");
-    handleAuthClick(); // 🟢 Trigger auth flow
-    return;
-  }
+      if (!gapi.client.getToken()) {
+        alert("Please authorize with Google first to access synced videos.");
+        handleAuthClick();
+        return;
+      }
 
-  room = input;
-  document.getElementById("roomDisplay").innerHTML = `
-    🎥 Joined Room: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong>
-    <span id="copiedMsg">✔ Copied!</span>
-  `;
-  setupAbly();
-}
+      room = input;
+      isOwner = false;
+      document.getElementById("roomDisplay").innerHTML = `
+        🎥 Joined Room: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong>
+        <span id="copiedMsg">✔ Copied!</span>
+      `;
+      setupAbly();
+    }
 
     function setupAbly() {
       const ably = new Ably.Realtime(ABLY_KEY);
@@ -235,6 +237,13 @@
           lastVideoId = data.videoId;
           playVideo(data.videoId);
         }
+      });
+
+      ablyChannel.subscribe("control", msg => {
+        const action = msg.data.action;
+        const iframe = document.getElementById("videoIframe");
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ event: action }, "*");
       });
 
       ablyChannel.subscribe("request-latest", () => {
@@ -259,16 +268,33 @@
       }
     }
 
+    function sendPlay() {
+      if (ablyChannel) ablyChannel.publish("control", { action: "play" });
+    }
+
+    function sendPause() {
+      if (ablyChannel) ablyChannel.publish("control", { action: "pause" });
+    }
+
     function playVideo(fileId) {
       const container = document.getElementById("playerContainer");
       container.innerHTML = "";
       const iframe = document.createElement("iframe");
+      iframe.id = "videoIframe";
       iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
       iframe.allow = "autoplay; fullscreen";
       container.appendChild(iframe);
+
+      if (isOwner) {
+        const controls = document.createElement("div");
+        controls.innerHTML = `
+          <button onclick="sendPlay()">▶️ Play</button>
+          <button onclick="sendPause()">⏸ Pause</button>
+        `;
+        container.appendChild(controls);
+      }
     }
 
-    // 💡 Copy Room ID logic
     document.addEventListener("click", function (e) {
       if (e.target && e.target.id === "copyRoomId") {
         const text = e.target.innerText;
@@ -282,7 +308,6 @@
       }
     });
   </script>
-
   <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
   <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 </body>
