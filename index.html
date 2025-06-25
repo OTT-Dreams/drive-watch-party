@@ -109,8 +109,8 @@
   <div id="main">
     <div id="playerContainer"></div>
     <div id="externalControls" style="display: none;">
-      <button onclick="sendControl('play')">▶️ Play</button>
-      <button onclick="sendControl('pause')">⏸ Pause</button>
+      <button onclick="sendControlToIframe('play')">▶️ Play</button>
+      <button onclick="sendControlToIframe('pause')">⏸ Pause</button>
     </div>
   </div>
   <script>
@@ -233,10 +233,10 @@
       });
 
       ablyChannel.subscribe("control", msg => {
-        const { action, time } = msg.data;
+        const { action } = msg.data;
         const iframe = document.getElementById("videoIframe");
         if (!iframe) return;
-        iframe.contentWindow.postMessage({ event: action, time }, "*");
+        iframe.contentWindow.postMessage(JSON.stringify({ event: action }), '*');
       });
 
       ablyChannel.subscribe("request-latest", () => {
@@ -261,8 +261,8 @@
       }
     }
 
-    function sendControl(action, time = null) {
-      if (ablyChannel) ablyChannel.publish("control", { action, time });
+    function sendControlToIframe(action) {
+      if (ablyChannel) ablyChannel.publish("control", { action });
     }
 
     function playVideo(fileId) {
