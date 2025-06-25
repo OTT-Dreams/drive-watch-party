@@ -89,10 +89,10 @@
     <h1>🎬 Drive Sync Watch</h1>
     <button id="authorize_button" onclick="handleAuthClick()">🔓 Authorize</button>
     <button id="signout_button" onclick="handleSignoutClick()" style="display:none;">🚪 Sign Out</button>
-    
+
     <input type="text" id="roomId" placeholder="Enter Room ID" />
     <button onclick="joinRoom()">🔗 Join Room</button>
-    
+
     <div id="roomDisplay"></div>
     <hr style="margin: 15px 0; border-color: #444;" />
     <div id="videos"></div>
@@ -110,6 +110,7 @@
 
     let tokenClient, ablyChannel, room = "";
     let gapiInited = false, gisInited = false;
+    let lastVideoId = null;
 
     function gapiLoaded() {
       gapi.load('client', initializeGapiClient);
@@ -207,13 +208,35 @@
     function setupAbly() {
       const ably = new Ably.Realtime(ABLY_KEY);
       ablyChannel = ably.channels.get("room-" + room);
+
       ablyChannel.subscribe("sync", msg => {
         const data = msg.data;
-        if (data.videoId) playVideo(data.videoId);
+        if (data.videoId) {
+          lastVideoId = data.videoId;
+          playVideo(data.videoId);
+        }
+      });
+
+      // presence join
+      ablyChannel.presence.enter();
+
+      // check if we are a second/third+ user
+      ablyChannel.presence.get((err, members) => {
+        if (members.length > 1) {
+          ablyChannel.publish("request-latest", {});
+        }
+      });
+
+      // handle someone asking for the current video
+      ablyChannel.subscribe("request-latest", () => {
+        if (lastVideoId) {
+          ablyChannel.publish("sync", { videoId: lastVideoId });
+        }
       });
     }
 
     function publishVideoId(fileId) {
+      lastVideoId = fileId;
       if (ablyChannel) {
         ablyChannel.publish("sync", { videoId: fileId });
       }
