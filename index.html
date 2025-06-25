@@ -60,13 +60,12 @@
     .thumb:hover {
       background: #f0f0f0;
     }
-    video {
+    iframe#drivePlayer {
       margin-top: 20px;
-      width: 90vw;
-      max-height: 75vh;
+      width: 90%;
+      height: 500px;
       border: 4px solid #444;
       border-radius: 10px;
-      display: none;
     }
   </style>
   <script src="https://apis.google.com/js/api.js"></script>
@@ -76,13 +75,11 @@
 <body>
   <h1>📺 Drive Sync Watch</h1>
 
-  <!-- Auth buttons -->
   <div id="auth">
     <button id="authorize_button" onclick="handleAuthClick()">🔓 Authorize</button>
     <button id="signout_button" onclick="handleSignoutClick()" style="display:none;">🚪 Sign Out</button>
   </div>
 
-  <!-- Setup & Room Join -->
   <div id="setup" style="display:none;">
     <input type="text" id="roomId" placeholder="Enter Room ID to Join" />
     <button onclick="joinRoom()">🔗 Join Room</button>
@@ -90,7 +87,6 @@
 
   <div id="joinInfo"></div>
   <div id="videos"></div>
-  <video id="player" controls></video>
 
   <script>
     const CLIENT_ID = "223089359374-j7fh0seetlipaagvoq73s4489elnrfko.apps.googleusercontent.com";
@@ -99,7 +95,6 @@
     const ABLY_KEY = "x3A3zw.0cEwww:LKwrrj7RypK6l5y-WjlYh6sZUgxBQC8-4432KBULIew";
 
     let tokenClient, ablyChannel, room = "";
-    const player = document.getElementById("player");
     const videosDiv = document.getElementById("videos");
 
     let gapiInited = false, gisInited = false;
@@ -172,9 +167,7 @@
           if (!room) createRoom();
           if (ablyChannel) {
             ablyChannel.publish("sync", {
-              videoId: file.id,
-              currentTime: 0,
-              playing: false
+              videoId: file.id
             });
           }
         };
@@ -204,33 +197,20 @@
       ablyChannel = ably.channels.get("room-" + room);
       ablyChannel.subscribe("sync", msg => {
         const data = msg.data;
-        if (data.videoId && !player.src.includes(data.videoId)) {
-          showVideo(data.videoId);
-        }
-        if (Math.abs(player.currentTime - data.currentTime) > 1) {
-          player.currentTime = data.currentTime;
-        }
-        if (data.playing) player.play();
-        else player.pause();
+        if (data.videoId) showVideo(data.videoId);
       });
     }
 
     function showVideo(fileId) {
-      player.src = `https://drive.google.com/uc?id=${fileId}&export=preview`;
-      player.style.display = "block";
-      player.dataset.vid = fileId;
-    }
+      const existing = document.getElementById("drivePlayer");
+      if (existing) existing.remove();
 
-    ["play", "pause", "seeking", "seeked"].forEach(e =>
-      player.addEventListener(e, () => {
-        if (!ablyChannel) return;
-        ablyChannel.publish("sync", {
-          videoId: player.dataset.vid,
-          currentTime: player.currentTime,
-          playing: !player.paused
-        });
-      })
-    );
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
+      iframe.id = "drivePlayer";
+      iframe.allow = "autoplay";
+      document.body.appendChild(iframe);
+    }
   </script>
 
   <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
