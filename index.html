@@ -84,7 +84,6 @@
 
   <!-- Setup & Room Join -->
   <div id="setup" style="display:none;">
-    <button onclick="createRoom()">🎬 Create Room</button>
     <input type="text" id="roomId" placeholder="Enter Room ID to Join" />
     <button onclick="joinRoom()">🔗 Join Room</button>
   </div>
@@ -96,7 +95,6 @@
   <script>
     const CLIENT_ID = "223089359374-j7fh0seetlipaagvoq73s4489elnrfko.apps.googleusercontent.com";
     const API_KEY = "AIzaSyBJ0gKOQZL48z_qN6qsIP5CIsWUwdcpM-Q";
-    const FOLDER_ID = "1AmYUxf-jRUxNY6ev0LC073Etn3fgw3Fj";
     const SCOPES = "https://www.googleapis.com/auth/drive.readonly";
     const ABLY_KEY = "x3A3zw.0cEwww:LKwrrj7RypK6l5y-WjlYh6sZUgxBQC8-4432KBULIew";
 
@@ -123,7 +121,7 @@
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
-        callback: '', // set later
+        callback: '',
       });
       gisInited = true;
       maybeEnableAuth();
@@ -155,13 +153,13 @@
       if (token) {
         google.accounts.oauth2.revoke(token.access_token);
         gapi.client.setToken('');
-        location.reload(); // clean reset
+        location.reload();
       }
     }
 
     async function listDriveVideos() {
       const res = await gapi.client.drive.files.list({
-        q: `'${FOLDER_ID}' in parents and mimeType contains 'video' and trashed=false`,
+        q: "mimeType contains 'video/' and trashed = false",
         fields: "files(id, name)"
       });
       videosDiv.innerHTML = "";
@@ -171,6 +169,7 @@
         div.innerHTML = `<strong>${file.name}</strong>`;
         div.onclick = () => {
           showVideo(file.id);
+          if (!room) createRoom();
           if (ablyChannel) {
             ablyChannel.publish("sync", {
               videoId: file.id,
