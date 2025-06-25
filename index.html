@@ -85,6 +85,27 @@
       margin-left: 8px;
       display: none;
     }
+    #overlayControls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+    #overlayControls button {
+      padding: 8px 12px;
+      font-size: 16px;
+      border-radius: 6px;
+      background-color: rgba(46, 204, 113, 0.8);
+      border: none;
+      cursor: pointer;
+      color: #fff;
+    }
+    #overlayControls button:hover {
+      background-color: rgba(39, 174, 96, 0.9);
+    }
   </style>
   <script src="https://apis.google.com/js/api.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -180,9 +201,7 @@
         div.innerText = file.name;
         div.onclick = () => {
           if (!room) {
-            createRoom(() => {
-              publishVideoId(file.id);
-            });
+            createRoom(() => publishVideoId(file.id));
           } else {
             if (isOwner) publishVideoId(file.id);
           }
@@ -268,12 +287,13 @@
       container.appendChild(iframe);
 
       if (isOwner) {
-        const controls = document.createElement("div");
-        controls.innerHTML = `
-          <button onclick="sendControl('play')">▶️ Play</button>
-          <button onclick="sendControl('pause')">⏸ Pause</button>
+        const overlay = document.createElement("div");
+        overlay.id = "overlayControls";
+        overlay.innerHTML = `
+          <button onclick="sendControl('play')">▶️</button>
+          <button onclick="sendControl('pause')">⏸</button>
         `;
-        container.appendChild(controls);
+        container.appendChild(overlay);
       }
     }
 
