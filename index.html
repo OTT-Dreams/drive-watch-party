@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Drive Sync Watch</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script defer src="firebase-config.js"></script>
+  <script defer src="script.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #f8f8f8; }
+    h1 { margin: 20px 0; }
+    #videos { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .thumb { cursor: pointer; border: 1px solid #ccc; padding: 5px; background: #fff; }
+    input, button { margin: 10px; padding: 10px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Drive Sync Watch</h1>
+
+  <input type="text" id="roomId" placeholder="Enter Room ID" />
+  <button onclick="createRoom()">Create Room</button>
+  <button onclick="joinRoom()">Join Room</button>
+
+  <div id="videos"></div>
+</body>
+</html>
