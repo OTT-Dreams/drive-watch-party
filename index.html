@@ -155,7 +155,7 @@
         await listDriveVideos();
       };
       if (gapi.client.getToken() === null) {
-        tokenClient.requestAccessToken({ prompt: "consent" });
+        tokenClient.requestAccessToken({ prompt: gapi.client.getToken() ? "" : "consent" });
       } else {
         tokenClient.requestAccessToken({ prompt: "" });
       }
@@ -207,15 +207,15 @@
     }
 
     function joinRoom() {
-      const input = document.getElementById("roomId").value.trim().toUpperCase();
-      if (!input) return alert("Enter Room ID");
-      room = input;
-      document.getElementById("roomDisplay").innerHTML = `
-        🎥 Joined Room: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong>
-        <span id="copiedMsg">✔ Copied!</span>
-      `;
-      setupAbly();
-    }
+  const input = document.getElementById("roomId").value.trim().toUpperCase();
+  if (!input) return alert("Enter Room ID");
+  room = input;
+  document.getElementById("roomDisplay").innerHTML = `
+    🎥 Joined Room: <strong id="copyRoomId" style="cursor:pointer;" title="Click to copy">${room}</strong>
+    <span id="copiedMsg">✔ Copied!</span>
+  `;
+  setupAbly();
+}
 
     function setupAbly() {
       const ably = new Ably.Realtime(ABLY_KEY);
