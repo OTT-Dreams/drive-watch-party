@@ -95,19 +95,15 @@
     <h1>🎬 Drive Sync Watch</h1>
     <button id="authorize_button" onclick="handleAuthClick()">🔓 Authorize</button>
     <button id="signout_button" onclick="handleSignoutClick()" style="display:none;">🚪 Sign Out</button>
-
     <input type="text" id="roomId" placeholder="Enter Room ID" />
     <button onclick="joinRoom()">🔗 Join Room</button>
-
     <div id="roomDisplay"></div>
     <hr style="margin: 15px 0; border-color: #444;" />
     <div id="videos"></div>
   </div>
-
   <div id="main">
     <div id="playerContainer"></div>
   </div>
-
   <script>
     const CLIENT_ID = "223089359374-j7fh0seetlipaagvoq73s4489elnrfko.apps.googleusercontent.com";
     const API_KEY = "AIzaSyBJ0gKOQZL48z_qN6qsIP5CIsWUwdcpM-Q";
@@ -185,12 +181,10 @@
         div.onclick = () => {
           if (!room) {
             createRoom(() => {
-              playVideo(file.id);
               publishVideoId(file.id);
             });
           } else {
-            playVideo(file.id);
-            publishVideoId(file.id);
+            if (isOwner) publishVideoId(file.id);
           }
         };
         videosDiv.appendChild(div);
@@ -232,10 +226,10 @@
       });
 
       ablyChannel.subscribe("control", msg => {
-        const action = msg.data.action;
+        const { action, time } = msg.data;
         const iframe = document.getElementById("videoIframe");
         if (!iframe) return;
-        iframe.contentWindow.postMessage({ event: action }, "*");
+        iframe.contentWindow.postMessage({ event: action, time }, "*");
       });
 
       ablyChannel.subscribe("request-latest", () => {
@@ -260,12 +254,8 @@
       }
     }
 
-    function sendPlay() {
-      if (ablyChannel) ablyChannel.publish("control", { action: "play" });
-    }
-
-    function sendPause() {
-      if (ablyChannel) ablyChannel.publish("control", { action: "pause" });
+    function sendControl(action, time = null) {
+      if (ablyChannel) ablyChannel.publish("control", { action, time });
     }
 
     function playVideo(fileId) {
@@ -280,8 +270,8 @@
       if (isOwner) {
         const controls = document.createElement("div");
         controls.innerHTML = `
-          <button onclick="sendPlay()">▶️ Play</button>
-          <button onclick="sendPause()">⏸ Pause</button>
+          <button onclick="sendControl('play')">▶️ Play</button>
+          <button onclick="sendControl('pause')">⏸ Pause</button>
         `;
         container.appendChild(controls);
       }
