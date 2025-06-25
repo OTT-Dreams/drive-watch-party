@@ -1,3 +1,4 @@
+<!-- ✅ FULL UPDATED CODE STARTS -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,11 +69,11 @@
       width: 90%;
       height: 75%;
     }
-    iframe {
+    video {
       width: 100%;
       height: 100%;
-      border: none;
       border-radius: 10px;
+      outline: none;
     }
     #roomDisplay {
       color: #0f9d58;
@@ -232,19 +233,13 @@
         }
       });
 
-      window.addEventListener("message", event => {
-        if (!event.data || typeof event.data !== "object") return;
-        const video = document.querySelector("video");
-        if (!video) return;
-        if (event.data.event === "play") video.play();
-        else if (event.data.event === "pause") video.pause();
-      });
-
       ablyChannel.subscribe("control", msg => {
         const { action } = msg.data;
-        const iframe = document.getElementById("videoIframe");
-        if (!iframe) return;
-        iframe.contentWindow.postMessage({ event: action }, '*');
+        const video = document.getElementById("syncedVideo");
+        if (!video) return;
+
+        if (action === "play") video.play();
+        else if (action === "pause") video.pause();
       });
 
       ablyChannel.subscribe("request-latest", () => {
@@ -276,11 +271,21 @@
     function playVideo(fileId) {
       const container = document.getElementById("playerContainer");
       container.innerHTML = "";
-      const iframe = document.createElement("iframe");
-      iframe.id = "videoIframe";
-      iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
-      iframe.allow = "autoplay; fullscreen";
-      container.appendChild(iframe);
+      const video = document.createElement("video");
+      video.id = "syncedVideo";
+      video.src = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      video.controls = isOwner;
+      video.autoplay = true;
+      video.style.width = "100%";
+      video.style.height = "100%";
+      video.style.borderRadius = "10px";
+
+      container.appendChild(video);
+
+      if (isOwner) {
+        video.addEventListener("play", () => sendControlToAll("play"));
+        video.addEventListener("pause", () => sendControlToAll("pause"));
+      }
 
       const extControls = document.getElementById("externalControls");
       extControls.style.display = isOwner ? "flex" : "none";
