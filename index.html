@@ -6,119 +6,133 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #0e0e0e;
-      color: #fff;
       margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: row;
-      height: 100vh;
-      overflow: hidden;
-    }
-    #sidebar {
-      width: 300px;
-      background-color: #1a1a1a;
-      padding: 20px;
-      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
-      overflow-y: auto;
-    }
-    #main {
-      flex: 1;
+      background: #111;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      background-color: #111;
-    }
-    h1 {
-      font-size: 22px;
-      margin-bottom: 15px;
-      color: #2ecc71;
-    }
-    input, button {
-      padding: 10px;
-      font-size: 14px;
-      border-radius: 4px;
-      margin: 5px 0;
-      width: 100%;
-    }
-    button {
-      background: #2ecc71;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #27ae60;
-    }
-    .thumb {
-      background: #222;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 6px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .thumb:hover {
-      background: #333;
-    }
-    .thumb-icon {
-      width: 24px;
-      height: 24px;
-      background: #2ecc71;
-      border-radius: 4px;
-      display: inline-block;
-    }
-    #playerContainer {
-      position: relative;
-      width: 90%;
-      height: 75%;
+      padding: 1rem;
     }
     video {
       width: 100%;
-      height: 100%;
-      border-radius: 10px;
-      outline: none;
+      max-width: 800px;
+      border-radius: 16px;
+      box-shadow: 0 0 20px #000;
     }
-    #roomDisplay {
-      color: #0f9d58;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-    #copiedMsg {
-      font-size: 12px;
-      color: #0f9d58;
-      margin-left: 8px;
-      display: none;
-    }
-    #externalControls {
-      margin-top: 20px;
+    #controls {
+      margin-top: 1rem;
       display: flex;
       gap: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      background: #00bfa5;
+      color: white;
+    }
+    input {
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+      width: 200px;
+    }
+    #roomSection {
+      margin-bottom: 1rem;
+    }
+    #roomIdDisplay {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #ccc;
     }
   </style>
 </head>
 <body>
-  <div id="sidebar">
-    <h1>🎬 Drive Sync Watch</h1>
-    <button id="authorize_button" onclick="handleAuthClick()">🔓 Authorize</button>
-    <button id="signout_button" onclick="handleSignoutClick()" style="display:none;">🚪 Sign Out</button>
-    <input type="text" id="roomId" placeholder="Enter Room ID" />
-    <button onclick="joinRoom()">🔗 Join Room</button>
-    <div id="roomDisplay"></div>
-    <hr style="margin: 15px 0; border-color: #444;" />
-    <div id="videos"></div>
+
+  <h2>🎬 Rave-style Drive Watch Party</h2>
+
+  <div id="roomSection">
+    <input type="text" id="roomId" placeholder="Room ID (e.g. abc123)" />
+    <input type="text" id="videoUrl" placeholder="Google Drive Video URL" />
+    <button onclick="joinRoom()">Join Room</button>
+    <div id="roomIdDisplay"></div>
   </div>
-  <div id="main">
-    <div id="playerContainer"></div>
-    <div id="externalControls" style="display: none;">
-      <button onclick="sendControlToAll('play')">▶️ Play</button>
-      <button onclick="sendControlToAll('pause')">⏸ Pause</button>
-    </div>
+
+  <video id="video" controls></video>
+
+  <div id="controls" style="display: none;">
+    <button onclick="video.play()">▶ Play</button>
+    <button onclick="video.pause()">⏸ Pause</button>
   </div>
+
+  <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
+  <script>
+    const ablyApiKey = 'x3A3zw.0cEwww:LKwrrj7RypK6l5y-WjlYh6sZUgxBQC8-4432KBULIew';
+    let ably, channel, isAdmin = false;
+    const video = document.getElementById('video');
+
+    function joinRoom() {
+      const roomId = document.getElementById('roomId').value.trim();
+      const videoUrl = document.getElementById('videoUrl').value.trim();
+      if (!roomId) return alert("Enter room ID");
+
+      // Setup Ably
+      ably = new Ably.Realtime(ablyApiKey);
+      channel = ably.channels.get(roomId);
+
+      channel.subscribe('control', msg => {
+        const { action, time } = msg.data;
+        if (action === 'play') {
+          video.currentTime = time;
+          video.play();
+        } else if (action === 'pause') {
+          video.currentTime = time;
+          video.pause();
+        }
+      });
+
+      // If user is the first to set video URL → admin
+      if (videoUrl) {
+        const driveId = extractDriveId(videoUrl);
+        if (!driveId) return alert("Invalid Google Drive URL");
+        const embedUrl = `https://drive.google.com/uc?export=download&id=${driveId}`;
+        video.src = embedUrl;
+        isAdmin = true;
+        document.getElementById('controls').style.display = 'flex';
+      }
+
+      document.getElementById('roomSection').style.display = 'none';
+      document.getElementById('roomIdDisplay').innerText = `Joined Room: ${roomId}`;
+    }
+
+    function extractDriveId(url) {
+      const regex = /\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/;
+      const match = url.match(regex);
+      return match ? (match[1] || match[2]) : null;
+    }
+
+    // Admin controls
+    video.addEventListener('play', () => {
+      if (isAdmin) {
+        channel.publish('control', {
+          action: 'play',
+          time: video.currentTime
+        });
+      }
+    });
+
+    video.addEventListener('pause', () => {
+      if (isAdmin) {
+        channel.publish('control', {
+          action: 'pause',
+          time: video.currentTime
+        });
+      }
+    });
+  </script>
 </body>
 </html>
