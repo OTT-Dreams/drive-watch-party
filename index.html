@@ -15,11 +15,13 @@
       align-items: center;
       padding: 1rem;
     }
-    video, img.thumb {
+    iframe, img.thumb {
       width: 100%;
       max-width: 800px;
+      aspect-ratio: 16/9;
       border-radius: 16px;
       box-shadow: 0 0 20px #000;
+      border: none;
     }
     #controls {
       margin-top: 1rem;
@@ -64,50 +66,40 @@
     <img id="previewThumb" class="thumb" src="" style="display:none" />
   </div>
 
-  <video id="video" controls style="display: none;"></video>
-
-  <div id="controls" style="display: none;">
-    <button onclick="video.play()">▶ Play</button>
-    <button onclick="video.pause()">⏸ Pause</button>
-  </div>
+  <iframe id="videoFrame" style="display: none;" allow="autoplay"></iframe>
 
   <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
   <script>
     const ablyApiKey = atob("eDNBM3p3LjBjRXd3dzpMS3dycmo3UnlwSzZsNXktV2psWUg2c1pVZ3hCUUM4LTQ0MzJLQlVMSWV3");
-    let ably, channel, isAdmin = false;
-    const video = document.getElementById('video');
+    let ably, channel;
     const previewThumb = document.getElementById('previewThumb');
+    const videoFrame = document.getElementById('videoFrame');
 
     function joinRoom() {
-      let roomId = document.getElementById('roomId').value.trim();
+      const roomInput = document.getElementById('roomId');
+      let roomId = roomInput.value.trim();
       const videoUrl = document.getElementById('videoUrl').value.trim();
-      if (!roomId) roomId = Math.random().toString(36).substring(2, 8);
+
+      if (!roomId) {
+        roomId = Math.random().toString(36).substring(2, 8);
+        roomInput.value = roomId;
+      }
+
       const driveId = extractDriveId(videoUrl);
       if (!driveId) return alert("Invalid Google Drive URL");
 
-      const embedUrl = `https://drive.google.com/uc?export=download&id=${driveId}`;
-      video.src = embedUrl;
-      video.style.display = "block";
+      const previewUrl = `https://drive.google.com/file/d/${driveId}/preview`;
+      videoFrame.src = previewUrl;
+      videoFrame.style.display = "block";
       previewThumb.style.display = "none";
 
       ably = new Ably.Realtime(ablyApiKey);
       channel = ably.channels.get(roomId);
 
-      channel.subscribe('control', msg => {
-        const { action, time } = msg.data;
-        if (action === 'play') {
-          video.currentTime = time;
-          video.play();
-        } else if (action === 'pause') {
-          video.currentTime = time;
-          video.pause();
-        }
-      });
+      // Optional: Future real-time sync messages
 
-      isAdmin = true;
-      document.getElementById('controls').style.display = 'flex';
-      document.getElementById('roomSection').style.display = 'none';
       document.getElementById('roomIdDisplay').innerText = `Room ID: ${roomId}`;
+      document.getElementById('roomSection').style.display = 'none';
     }
 
     function extractDriveId(url) {
@@ -126,24 +118,6 @@
         previewThumb.style.display = 'none';
       }
     }
-
-    video.addEventListener('play', () => {
-      if (isAdmin && channel) {
-        channel.publish('control', {
-          action: 'play',
-          time: video.currentTime
-        });
-      }
-    });
-
-    video.addEventListener('pause', () => {
-      if (isAdmin && channel) {
-        channel.publish('control', {
-          action: 'pause',
-          time: video.currentTime
-        });
-      }
-    });
   </script>
 </body>
 </html>
