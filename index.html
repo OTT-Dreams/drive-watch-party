@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filetransfer.io Video Sync</title>
+    <title>Filetransfer.io Global Video Sync</title>
     <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
     <style>
         body {
@@ -17,32 +17,33 @@
             padding: 20px;
         }
         input {
-            padding: 10px;
-            width: 300px;
+            padding: 12px;
+            width: 320px;
             margin: 10px 0;
             border-radius: 5px;
             border: none;
         }
         button {
-            padding: 10px 20px;
+            padding: 12px 20px;
             background: #00ffe1;
             border: none;
             font-weight: bold;
             border-radius: 5px;
             cursor: pointer;
+            margin-bottom: 20px;
         }
         video {
-            margin-top: 20px;
             width: 100%;
             max-width: 800px;
             border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,255,255,0.5);
+            box-shadow: 0 0 20px rgba(0,255,255,0.5);
+            background: #000;
         }
     </style>
 </head>
 <body>
 
-<h1>Filetransfer.io Video Sync</h1>
+<h1>Filetransfer.io Global Video Sync</h1>
 
 <input type="text" id="videoLinkInput" placeholder="Paste Filetransfer.io Direct Video Link" />
 <button onclick="loadVideo()">Load Video</button>
@@ -57,29 +58,44 @@
 
     function loadVideo() {
         const input = document.getElementById("videoLinkInput").value.trim();
-        video.src = input;
-        channel.publish("video-load", { link: input });
+        if (input) {
+            video.src = input;
+            video.load();
+            channel.publish("video-load", { link: input });
+        }
     }
 
     channel.subscribe("video-load", (msg) => {
         if (msg.connectionId === ably.connection.id) return;
         video.src = msg.data.link;
+        video.load();
     });
 
+    let isSyncing = false;
+
     video.addEventListener("play", () => {
-        channel.publish("video-sync", { action: "play", time: video.currentTime });
+        if (!isSyncing) {
+            channel.publish("video-sync", { action: "play", time: video.currentTime });
+        }
     });
 
     video.addEventListener("pause", () => {
-        channel.publish("video-sync", { action: "pause", time: video.currentTime });
+        if (!isSyncing) {
+            channel.publish("video-sync", { action: "pause", time: video.currentTime });
+        }
     });
 
     video.addEventListener("seeked", () => {
-        channel.publish("video-sync", { action: "seek", time: video.currentTime });
+        if (!isSyncing) {
+            channel.publish("video-sync", { action: "seek", time: video.currentTime });
+        }
     });
 
     channel.subscribe("video-sync", (msg) => {
         if (msg.connectionId === ably.connection.id) return;
+
+        isSyncing = true;
+
         if (msg.data.action === "play") {
             video.currentTime = msg.data.time;
             video.play();
@@ -91,6 +107,8 @@
         if (msg.data.action === "seek") {
             video.currentTime = msg.data.time;
         }
+
+        setTimeout(() => { isSyncing = false; }, 300);
     });
 </script>
 
