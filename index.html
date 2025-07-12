@@ -1,75 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Drive Video Embed Player</title>
-  <style>
-    body {
-      margin: 0;
-      background: #111;
-      color: #fff;
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-    input {
-      padding: 10px;
-      width: 300px;
-      margin: 10px 0;
-      border-radius: 5px;
-      border: none;
-    }
-    button {
-      padding: 10px 20px;
-      background: #00ffe1;
-      border: none;
-      font-weight: bold;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    iframe {
-      margin-top: 20px;
-      width: 100%;
-      max-width: 800px;
-      aspect-ratio: 16/9;
-      border: none;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,255,255,0.5);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Drive Video Sync</title>
+    <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: #fff;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        input {
+            padding: 10px;
+            width: 300px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+        }
+        button {
+            padding: 10px 20px;
+            background: #00ffe1;
+            border: none;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        iframe {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 16/9;
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,255,255,0.5);
+        }
+    </style>
 </head>
 <body>
 
-<h1>Drive Video Embed Player</h1>
+<h1>Global Drive Video Sync</h1>
 
-<input type="text" id="videoIdInput" placeholder="Enter Drive Video ID or Link" />
-<button onclick="embedVideo()">Play Video</button>
+<input type="text" id="videoLinkInput" placeholder="Paste Google Drive Link or Video URL" />
+<button onclick="loadVideo()">Load Video</button>
 
 <iframe id="videoFrame" allowfullscreen></iframe>
 
 <script>
-  function extractDriveId(input) {
-    if (input.includes("drive.google.com")) {
-      const match = input.match(/[-\w]{25,}/);
-      return match ? match[0] : null;
-    }
-    return input.trim();
-  }
+    const ably = new Ably.Realtime("x3A3zw.0cEwww:LKwrrj7RypK6l5y-WjlYh6sZUgxBQC8-4432KBULIew");
+    const channel = ably.channels.get("global-video-sync-room");
 
-  function embedVideo() {
-    const input = document.getElementById("videoIdInput").value;
-    const videoId = extractDriveId(input);
+    const videoFrame = document.getElementById("videoFrame");
 
-    if (videoId) {
-      const embedLink = `https://drive.google.com/file/d/${videoId}/preview`;
-      document.getElementById("videoFrame").src = embedLink;
-    } else {
-      alert("Invalid Drive link or ID.");
+    function extractDriveEmbedLink(link) {
+        if (link.includes("drive.google.com")) {
+            const match = link.match(/[-\w]{25,}/);
+            if (match) {
+                return `https://drive.google.com/file/d/${match[0]}/preview`;
+            }
+        }
+        return link; // Direct link
     }
-  }
+
+    function loadVideo() {
+        const input = document.getElementById("videoLinkInput").value.trim();
+        const embedLink = extractDriveEmbedLink(input);
+        videoFrame.src = embedLink;
+        channel.publish("video-load", { link: embedLink });
+    }
+
+    // Listen for video load sync
+    channel.subscribe("video-load", (msg) => {
+        if (msg.connectionId === ably.connection.id) return;
+        videoFrame.src = msg.data.link;
+    });
 </script>
 
 </body>
