@@ -3,88 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Drive Watch</title>
+    <title>Drive Link Video Player</title>
     <style>
         body {
-            margin: 0;
             background: #111;
             color: #fff;
-            font-family: sans-serif;
-        }
-        h3 {
             text-align: center;
-            margin: 20px 0;
+            font-family: sans-serif;
+            margin: 0;
+            padding: 20px;
         }
-        ul {
-            list-style: none;
-            padding: 0;
-            margin: 0 auto;
+        input {
+            width: 80%;
             max-width: 600px;
-        }
-        li {
-            background: #222;
-            margin: 10px;
             padding: 10px;
-            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
         }
         video {
             width: 100%;
             max-width: 800px;
-            display: block;
-            margin: 20px auto;
+            margin-top: 20px;
             border-radius: 10px;
-        }
-        a {
-            color: #4fc3f7;
-            text-decoration: none;
         }
     </style>
 </head>
 <body>
 
-    <h3>Google Drive Public Videos</h3>
-
-    <ul id="file-list"></ul>
+    <h2>Google Drive Video Link Player</h2>
+    <input type="text" id="driveLink" placeholder="Paste your Google Drive link here" />
+    <br>
+    <button onclick="loadVideo()">Play Video</button>
 
     <video id="videoPlayer" controls></video>
 
     <script>
-        const API_KEY = "AIzaSyDkHluppi74TTkiavcav3TjoOhq8YEDFgc";
-        const FOLDER_ID = "1AmYUxf-jRUxNY6ev0LC073Etn3fgw3Fj"; // এখানে আপনার ফোল্ডার ID বসান
+        function extractFileId(url) {
+            const match = url.match(/[-\w]{25,}/);
+            return match ? match[0] : null;
+        }
 
-        const videoPlayer = document.getElementById("videoPlayer");
+        function loadVideo() {
+            const link = document.getElementById("driveLink").value.trim();
+            const fileId = extractFileId(link);
 
-        async function listPublicFiles() {
-            const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+trashed=false&key=${API_KEY}&fields=files(id,name,mimeType)`;
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-
-                if (data.files && data.files.length > 0) {
-                    const fileList = document.getElementById("file-list");
-                    data.files.forEach(file => {
-                        if (file.mimeType.includes("video")) {
-                            const li = document.createElement("li");
-                            li.innerHTML = `<a href="#" onclick="playVideo('${file.id}'); return false;">${file.name}</a>`;
-                            fileList.appendChild(li);
-                        }
-                    });
-                } else {
-                    document.getElementById("file-list").innerText = "No video files found.";
-                }
-            } catch (err) {
-                console.error(err);
-                document.getElementById("file-list").innerText = "Error loading files.";
+            if (fileId) {
+                const videoUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
+                const videoPlayer = document.getElementById("videoPlayer");
+                videoPlayer.src = videoUrl;
+                videoPlayer.play();
+            } else {
+                alert("Invalid Google Drive link!");
             }
         }
-
-        function playVideo(fileId) {
-            const videoUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
-            videoPlayer.src = videoUrl;
-            videoPlayer.play();
-        }
-
-        listPublicFiles();
     </script>
+
 </body>
 </html>
