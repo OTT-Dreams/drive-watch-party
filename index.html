@@ -1,78 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Movie Watch — Google Drive</title>
-    <style>
-        body {
-            margin: 0;
-            background: #111;
-            color: #fff;
-            font-family: sans-serif;
-            padding: 20px;
-        }
-        h3 {
-            margin-bottom: 10px;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            margin-bottom: 10px;
-        }
-        video {
-            width: 100%;
-            max-width: 720px;
-            margin-top: 20px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🎬 Global Movie Watch</title>
+  <style>
+    body {
+      background-color: #0d0d0d;
+      color: #f1f1f1;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #00ffe1;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      max-width: 800px;
+      margin: 20px auto;
+    }
+    li {
+      background: #1a1a1a;
+      margin-bottom: 10px;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    li:hover {
+      background: #2c2c2c;
+    }
+    video {
+      display: block;
+      margin: 30px auto;
+      width: 100%;
+      max-width: 800px;
+      border: 2px solid #00ffe1;
+      border-radius: 10px;
+    }
+  </style>
 </head>
 <body>
 
-<h3>Google Drive Public Folder Files</h3>
+<h1>🎥 Drive Movie List</h1>
 <ul id="file-list"></ul>
-
 <video id="videoPlayer" controls></video>
 
 <script>
-    const API_KEY = "AIzaSyDkHluppi74TTkiavcav3TjoOhq8YEDFgc";
-    const FOLDER_ID = "1AmYUxf-jRUxNY6ev0LC073Etn3fgw3Fj";
+  const API_KEY = "AIzaSyDkHluppi74TTkiavcav3TjoOhq8YEDFgc";
+  const FOLDER_ID = "1AmYUxf-jRUxNY6ev0LC073Etn3fgw3Fj";
+  const fileList = document.getElementById("file-list");
+  const videoPlayer = document.getElementById("videoPlayer");
 
-    const fileList = document.getElementById("file-list");
-    const videoPlayer = document.getElementById("videoPlayer");
+  async function listPublicFiles() {
+    const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+trashed=false&key=${API_KEY}&fields=files(id,name,mimeType)`;
 
-    async function listPublicFiles() {
-        const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+trashed=false&key=${API_KEY}&fields=files(id,name,mimeType)`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
 
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-
-            if (data.files && data.files.length > 0) {
-                data.files.forEach(file => {
-                    // Allow all file types without mimeType filtering
-                    const li = document.createElement("li");
-                    li.innerHTML = `<button onclick="playVideo('${file.id}')">${file.name}</button>`;
-                    fileList.appendChild(li);
-                });
-            } else {
-                fileList.innerText = "No files found.";
-            }
-        } catch (err) {
-            console.error(err);
-            fileList.innerText = "Error loading files.";
-        }
+      if (data.files && data.files.length > 0) {
+        let found = false;
+        data.files.forEach(file => {
+          if (file.name.match(/\.(mp4|mkv|webm|avi)$/i)) {
+            found = true;
+            const li = document.createElement("li");
+            li.textContent = file.name;
+            li.onclick = () => playVideo(file.id);
+            fileList.appendChild(li);
+          }
+        });
+        if (!found) fileList.innerHTML = "<li>No video files found.</li>";
+      } else {
+        fileList.innerHTML = "<li>No files found in the folder.</li>";
+      }
+    } catch (err) {
+      console.error(err);
+      fileList.innerHTML = "<li>⚠️ Error loading files.</li>";
     }
+  }
 
-    function playVideo(fileId) {
-        const videoSrc = `https://drive.google.com/uc?export=view&id=${fileId}`;
-        videoPlayer.src = videoSrc;
-        videoPlayer.play();
-    }
+  function playVideo(fileId) {
+    const videoSrc = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    videoPlayer.src = videoSrc;
+    videoPlayer.play();
+  }
 
-    listPublicFiles();
+  listPublicFiles();
 </script>
 
 </body>
