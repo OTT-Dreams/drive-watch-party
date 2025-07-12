@@ -1,123 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Drive Sync Watch</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      margin: 0;
-      background: #111;
-      font-family: 'Segoe UI', sans-serif;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 1rem;
-    }
-    iframe, img.thumb {
-      width: 100%;
-      max-width: 800px;
-      aspect-ratio: 16/9;
-      border-radius: 16px;
-      box-shadow: 0 0 20px #000;
-      border: none;
-    }
-    #controls {
-      margin-top: 1rem;
-      display: flex;
-      gap: 10px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      background: #00bfa5;
-      color: white;
-    }
-    input {
-      padding: 8px;
-      border-radius: 8px;
-      border: none;
-      width: 200px;
-    }
-    #roomSection {
-      margin-bottom: 1rem;
-    }
-    #roomIdDisplay {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #ccc;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Drive Watch</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: #fff;
+            font-family: sans-serif;
+        }
+        h3 {
+            text-align: center;
+            margin: 20px 0;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0 auto;
+            max-width: 600px;
+        }
+        li {
+            background: #222;
+            margin: 10px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        video {
+            width: 100%;
+            max-width: 800px;
+            display: block;
+            margin: 20px auto;
+            border-radius: 10px;
+        }
+        a {
+            color: #4fc3f7;
+            text-decoration: none;
+        }
+    </style>
 </head>
 <body>
 
-  <h2>🎬 Drive Sync Watch Party</h2>
+    <h3>Google Drive Public Videos</h3>
 
-  <div id="roomSection">
-    <input type="text" id="roomId" placeholder="Room ID (or leave blank)" />
-    <input type="text" id="videoUrl" placeholder="Google Drive Video URL" oninput="showThumb()" />
-    <button onclick="joinRoom()">Join Room</button>
-    <div id="roomIdDisplay"></div>
-    <br />
-    <img id="previewThumb" class="thumb" src="" style="display:none" />
-  </div>
+    <ul id="file-list"></ul>
 
-  <iframe id="videoFrame" style="display: none;" allow="autoplay"></iframe>
+    <video id="videoPlayer" controls></video>
 
-  <script src="https://cdn.ably.io/lib/ably.min-1.js"></script>
-  <script>
-    const ablyApiKey = atob("eDNBM3p3LjBjRXd3dzpMS3dycmo3UnlwSzZsNXktV2psWUg2c1pVZ3hCUUM4LTQ0MzJLQlVMSWV3");
-    let ably, channel;
-    const previewThumb = document.getElementById('previewThumb');
-    const videoFrame = document.getElementById('videoFrame');
+    <script>
+        const API_KEY = "AIzaSyDkHluppi74TTkiavcav3TjoOhq8YEDFgc";
+        const FOLDER_ID = "1AmYUxf-jRUxNY6ev0LC073Etn3fgw3Fj"; // এখানে আপনার ফোল্ডার ID বসান
 
-    function joinRoom() {
-      const roomInput = document.getElementById('roomId');
-      let roomId = roomInput.value.trim();
-      const videoUrl = document.getElementById('videoUrl').value.trim();
+        const videoPlayer = document.getElementById("videoPlayer");
 
-      if (!roomId) {
-        roomId = Math.random().toString(36).substring(2, 8);
-        roomInput.value = roomId;
-      }
+        async function listPublicFiles() {
+            const url = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+trashed=false&key=${API_KEY}&fields=files(id,name,mimeType)`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
 
-      const driveId = extractDriveId(videoUrl);
-      if (!driveId) return alert("Invalid Google Drive URL");
+                if (data.files && data.files.length > 0) {
+                    const fileList = document.getElementById("file-list");
+                    data.files.forEach(file => {
+                        if (file.mimeType.includes("video")) {
+                            const li = document.createElement("li");
+                            li.innerHTML = `<a href="#" onclick="playVideo('${file.id}'); return false;">${file.name}</a>`;
+                            fileList.appendChild(li);
+                        }
+                    });
+                } else {
+                    document.getElementById("file-list").innerText = "No video files found.";
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById("file-list").innerText = "Error loading files.";
+            }
+        }
 
-      const previewUrl = `https://drive.google.com/file/d/${driveId}/preview`;
-      videoFrame.src = previewUrl;
-      videoFrame.style.display = "block";
-      previewThumb.style.display = "none";
+        function playVideo(fileId) {
+            const videoUrl = `https://drive.google.com/uc?id=${fileId}&export=download`;
+            videoPlayer.src = videoUrl;
+            videoPlayer.play();
+        }
 
-      ably = new Ably.Realtime(ablyApiKey);
-      channel = ably.channels.get(roomId);
-
-      // Optional: Future real-time sync messages
-
-      document.getElementById('roomIdDisplay').innerText = `Room ID: ${roomId}`;
-      document.getElementById('roomSection').style.display = 'none';
-    }
-
-    function extractDriveId(url) {
-      const regex = /\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/;
-      const match = url.match(regex);
-      return match ? (match[1] || match[2]) : null;
-    }
-
-    function showThumb() {
-      const url = document.getElementById('videoUrl').value.trim();
-      const id = extractDriveId(url);
-      if (id) {
-        previewThumb.src = `https://drive.google.com/thumbnail?id=${id}`;
-        previewThumb.style.display = 'block';
-      } else {
-        previewThumb.style.display = 'none';
-      }
-    }
-  </script>
+        listPublicFiles();
+    </script>
 </body>
 </html>
