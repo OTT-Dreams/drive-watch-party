@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Drive Video Player</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drive Video Embed Player</title>
   <style>
     body {
       margin: 0;
@@ -19,35 +19,36 @@
       padding: 10px;
       width: 300px;
       margin: 10px 0;
-      border: none;
       border-radius: 5px;
+      border: none;
     }
     button {
       padding: 10px 20px;
       background: #00ffe1;
       border: none;
-      color: #111;
       font-weight: bold;
       border-radius: 5px;
       cursor: pointer;
     }
-    video {
+    iframe {
+      margin-top: 20px;
       width: 100%;
       max-width: 800px;
-      margin-top: 20px;
+      aspect-ratio: 16/9;
+      border: none;
       border-radius: 10px;
-      border: 2px solid #00ffe1;
+      box-shadow: 0 0 10px rgba(0,255,255,0.5);
     }
   </style>
 </head>
 <body>
 
-<h1>Google Drive Video Player</h1>
+<h1>Drive Video Embed Player</h1>
 
-<input type="text" id="videoIdInput" placeholder="Enter Google Drive Video ID or Link" />
-<button onclick="playFromInput()">Play Video</button>
+<input type="text" id="videoIdInput" placeholder="Enter Drive Video ID or Link" />
+<button onclick="embedVideo()">Play Video</button>
 
-<video id="videoPlayer" controls></video>
+<iframe id="videoFrame" allowfullscreen></iframe>
 
 <script>
   function extractDriveId(input) {
@@ -58,17 +59,15 @@
     return input.trim();
   }
 
-  function playFromInput() {
+  function embedVideo() {
     const input = document.getElementById("videoIdInput").value;
     const videoId = extractDriveId(input);
 
     if (videoId) {
-      const videoSrc = `https://drive.google.com/thumbnail?id=${videoId}&sz=w1000`;
-      const videoPlayer = document.getElementById("videoPlayer");
-      videoPlayer.src = videoSrc;
-      videoPlayer.play();
+      const embedLink = `https://drive.google.com/file/d/${videoId}/preview`;
+      document.getElementById("videoFrame").src = embedLink;
     } else {
-      alert("Invalid ID or link!");
+      alert("Invalid Drive link or ID.");
     }
   }
 </script>
