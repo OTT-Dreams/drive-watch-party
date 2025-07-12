@@ -52,14 +52,13 @@
 
             if (data.files && data.files.length > 0) {
                 data.files.forEach(file => {
-                    if (file.mimeType.includes("video")) {
-                        const li = document.createElement("li");
-                        li.innerHTML = `<button onclick="playVideo('${file.id}')">${file.name}</button>`;
-                        fileList.appendChild(li);
-                    }
+                    // Allow all file types without mimeType filtering
+                    const li = document.createElement("li");
+                    li.innerHTML = `<button onclick="playVideo('${file.id}')">${file.name}</button>`;
+                    fileList.appendChild(li);
                 });
             } else {
-                fileList.innerText = "No video files found.";
+                fileList.innerText = "No files found.";
             }
         } catch (err) {
             console.error(err);
@@ -68,7 +67,6 @@
     }
 
     function playVideo(fileId) {
-        // Thumb preview link or streaming link
         const videoSrc = `https://drive.google.com/uc?export=view&id=${fileId}`;
         videoPlayer.src = videoSrc;
         videoPlayer.play();
